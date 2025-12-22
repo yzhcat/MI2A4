@@ -1,22 +1,33 @@
 import os
 import fitz  # PyMuPDF
 
-def merge_invoices_fitz(source_folder, output_path):
+def merge_invoices_fitz(source_folders, output_path):
     """
     使用PyMuPDF将指定文件夹内的所有PDF文件，每4张合并到一个横向的A4页面上。
     """
     
-    # 收集所有PDF文件
-    pdf_files = []
-    for file in os.listdir(source_folder):
-        if file.lower().endswith('.pdf'):
-            pdf_files.append(os.path.join(source_folder, file))
+    # 收集所有目录中的PDF文件
+    all_pdf_files = []
     
-    if not pdf_files:
-        print("警告：在指定文件夹中未找到PDF文件。")
-        return
+    for source_folder in source_folders:
+        if not os.path.exists(source_folder):
+            print(f"警告：目录不存在: {source_folder}")
+            continue
+            
+        print(f"扫描目录: {source_folder}")
+        files_num = 0
+        for file in os.listdir(source_folder):
+            if file.lower().endswith('.pdf'):
+                all_pdf_files.append(os.path.join(source_folder, file))
+                files_num += 1
+                print(f"  找到文件: {file}")
+        
+        print(f"  目录 {source_folder} 共找到 {files_num} 个PDF文件")
     
-    print(f"找到 {len(pdf_files)} 个PDF文件，开始处理...")
+    if not all_pdf_files:
+        print("未找到任何PDF文件。")
+    else:
+        print(f"\n总共找到 {len(all_pdf_files)} 个PDF文件，开始合并...")
     
     # 创建一个新的PDF文档
     new_pdf = fitz.open()
@@ -32,7 +43,7 @@ def merge_invoices_fitz(source_folder, output_path):
     sub_height = usable_height / 2.0
     
     # 处理每个PDF文件
-    for index, pdf_file in enumerate(pdf_files):
+    for index, pdf_file in enumerate(all_pdf_files):
         position_in_page = index % 4
         
         # 创建新页面
@@ -87,12 +98,15 @@ def merge_invoices_fitz(source_folder, output_path):
     new_pdf.save(output_path)
     new_pdf.close()
     
-    print(f"\n处理完成！共合并了 {len(pdf_files)} 张发票。")
+    print(f"\n处理完成！共合并了 {len(all_pdf_files)} 张发票。")
     print(f"输出文件已保存至: {output_path}")
 
 # 使用示例
 if __name__ == "__main__":
-    source_directory = "path"
-    output_file = "out.pdf"
-    
-    merge_invoices_fitz(source_directory, output_file)
+    # 可以指定多个源目录
+    source_directories = [
+        "D:/Library/Downloads/发票/25-12-21/差旅补助",
+        "D:/Library/Downloads/发票/25-12-21/出行住宿",
+        # 添加更多目录...
+    ]
+    merge_invoices_fitz(source_directories, "merged_all_invoices.pdf")
