@@ -1,0 +1,4 @@
+test.pdf
+.\test
+./hehe
+./tttt

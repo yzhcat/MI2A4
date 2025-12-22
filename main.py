@@ -1,4 +1,5 @@
 import os
+import sys
 import fitz  # PyMuPDF
 
 def merge_invoices_fitz(source_folders, output_path):
@@ -36,11 +37,11 @@ def merge_invoices_fitz(source_folders, output_path):
     a4_width = 842  # 横向宽度
     a4_height = 595  # 横向高度
     
-    margin = 40
-    usable_width = a4_width - 2 * margin
-    usable_height = a4_height - 2 * margin
-    sub_width = usable_width / 2.0
-    sub_height = usable_height / 2.0
+    margin = 2 # 页边距
+    usable_width = a4_width - 2 * margin # 可用宽度
+    usable_height = a4_height - 2 * margin # 可用高度
+    sub_width = usable_width / 2.0 # 子页面宽度
+    sub_height = usable_height / 2.0 # 子页面高度
     
     # 处理每个PDF文件
     for index, pdf_file in enumerate(all_pdf_files):
@@ -49,6 +50,9 @@ def merge_invoices_fitz(source_folders, output_path):
         # 创建新页面
         if position_in_page == 0:
             page = new_pdf.new_page(width=a4_width, height=a4_height)
+            # 画两条线四等分页面
+            page.draw_line((margin, margin + sub_height), (margin + usable_width, margin + sub_height))
+            page.draw_line((margin + sub_width, margin), (margin + sub_width, margin + usable_height))
         
         try:
             # 打开单个发票PDF
@@ -101,12 +105,79 @@ def merge_invoices_fitz(source_folders, output_path):
     print(f"\n处理完成！共合并了 {len(all_pdf_files)} 张发票。")
     print(f"输出文件已保存至: {output_path}")
 
-# 使用示例
-if __name__ == "__main__":
+
+def test_main():
     # 可以指定多个源目录
     source_directories = [
-        "D:/Library/Downloads/发票/25-12-21/差旅补助",
-        "D:/Library/Downloads/发票/25-12-21/出行住宿",
+        # "D:/Library/Downloads/发票/25-12-21/差旅补助",
+        # "D:/Library/Downloads/发票/25-12-21/出行住宿",
+        "./test"
         # 添加更多目录...
     ]
     merge_invoices_fitz(source_directories, "merged_all_invoices.pdf")
+
+def log_help():
+    print("使用方法: python main.py [路径1] [路径2] ... [输出文件名.pdf]")
+    print("或者: python main.py [目录列表.txt]")
+    print("默认输出文件名: out.pdf")
+    print("-h: 查看目录列表格式")
+
+def help_use_path_file():
+    print("*.txt 格式:")
+    print("每个目录占一行")
+    print("第一行或最后一行如果是*.pdf，会作为输出文件名")
+    print("示例:")
+    print("./差旅补助")
+    print("./出行住宿")
+    print("out1.pdf")
+
+def main():
+    # 获取命令行参数
+    args = sys.argv[1:]
+    
+    if not args:
+        log_help()
+        return
+    
+    if args[0] == "-h":
+        help_use_path_file()
+        return
+    
+    # 默认输出文件名
+    output_file = "out.pdf"
+    path_from_txt = False
+    # 检查第一个参数是否是.txt文件
+    if args and args[0].lower().endswith('.txt'):
+        path_from_txt = True
+
+    # 文件路径列表
+    file_paths = []
+    # 从txt文件读取路径
+    if path_from_txt:
+        try:
+            with open(args[0], 'r', encoding='utf-8') as f:
+                file_paths = [line.strip() for line in f.readlines() if line.strip()]
+        except Exception as e:
+            print(f"读取文件 {args[0]} 时出错: {e}")
+            return
+    else:
+        file_paths = args
+
+    # 检查第一个和最后一个参数是否是.pdf文件
+    if file_paths and file_paths[0].lower().endswith('.pdf'):
+        output_file = file_paths[0]
+        file_paths = file_paths[1:]  # 移除输出文件名
+    elif file_paths and file_paths[-1].lower().endswith('.pdf'):
+        output_file = file_paths[-1]
+        file_paths = file_paths[:-1]  # 移除输出文件名
+
+     # 收集所有源路径
+    source_paths = []
+    for file_path in file_paths:
+        if os.path.isdir(file_path):
+            source_paths.append(file_path)
+    merge_invoices_fitz(source_paths, output_file)
+# 使用示例
+if __name__ == "__main__":
+    # test_main()
+    main()
