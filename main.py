@@ -2,13 +2,12 @@ import os
 import sys
 import fitz  # PyMuPDF
 
-def merge_invoices_fitz(source_folders, output_path):
+def get_file_from_folders(source_folders):
     """
-    使用PyMuPDF将指定文件夹内的所有PDF文件，每4张合并到一个横向的A4页面上。
+    找到所有PDF文件
     """
-    
     # 收集所有目录中的PDF文件
-    all_pdf_files = []
+    pdf_files = []
     
     for source_folder in source_folders:
         if not os.path.exists(source_folder):
@@ -19,16 +18,24 @@ def merge_invoices_fitz(source_folders, output_path):
         files_num = 0
         for file in os.listdir(source_folder):
             if file.lower().endswith('.pdf'):
-                all_pdf_files.append(os.path.join(source_folder, file))
+                pdf_files.append(os.path.join(source_folder, file))
                 files_num += 1
                 print(f"  找到文件: {file}")
         
         print(f"  目录 {source_folder} 共找到 {files_num} 个PDF文件")
     
+    return pdf_files
+
+def merge_invoices_fitz(all_pdf_files, output_path):
+    """
+    使用PyMuPDF将所有PDF文件，每4张合并到一个横向的A4页面上。
+    """
+
     if not all_pdf_files:
         print("未找到任何PDF文件。")
+        return
     else:
-        print(f"\n总共找到 {len(all_pdf_files)} 个PDF文件，开始合并...")
+        print(f"\n共 {len(all_pdf_files)} 个PDF文件，开始合并...")
     
     # 创建一个新的PDF文档
     new_pdf = fitz.open()
@@ -165,7 +172,10 @@ def main():
     for file_path in file_paths:
         if os.path.isdir(file_path):
             source_paths.append(file_path)
-    merge_invoices_fitz(source_paths, output_file)
+    
+    # 收集所有目录中的PDF文件
+    all_pdf_files = get_file_from_folders(source_paths)
+    merge_invoices_fitz(all_pdf_files, output_file)
 # 使用示例
 if __name__ == "__main__":
     # test_main()
