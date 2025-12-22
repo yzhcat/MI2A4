@@ -79,3 +79,7 @@ merged_invoices.pdf
 ```bash
 pip install PyMuPDF
 ```
+
+## 打包EXE
+
+- 参考[打包exe.md](./doc/build_exe.md)
