@@ -105,17 +105,6 @@ def merge_invoices_fitz(source_folders, output_path):
     print(f"\n处理完成！共合并了 {len(all_pdf_files)} 张发票。")
     print(f"输出文件已保存至: {output_path}")
 
-
-def test_main():
-    # 可以指定多个源目录
-    source_directories = [
-        # "D:/Library/Downloads/发票/25-12-21/差旅补助",
-        # "D:/Library/Downloads/发票/25-12-21/出行住宿",
-        "./test"
-        # 添加更多目录...
-    ]
-    merge_invoices_fitz(source_directories, "merged_all_invoices.pdf")
-
 def log_help():
     print("使用方法: python main.py [路径1] [路径2] ... [输出文件名.pdf]")
     print("或者: python main.py [目录列表.txt]")
