@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import fitz  # PyMuPDF
 
 def get_file_from_folders(source_folders):
@@ -26,6 +27,46 @@ def get_file_from_folders(source_folders):
     
     return pdf_files
 
+# 读取发票金额
+def read_invoice_amount(page):
+    """
+    从PDF文件中读取发票金额。
+    核心思路：提取文本与坐标 -> 定位关键词 -> 匹配附近金额数字
+    """
+    amount = None
+
+    # 提取带详细坐标信息的文本块
+    # 使用 “dict” 或 “blocks” 格式以获得位置信息
+    blocks = page.get_text("blocks")  # 每个block包含(x0, y0, x1, y1, "文本", ...)
+    # 或使用：text_dict = page.get_text("dict")
+
+    # 定义可能表示金额的关键词
+    amount_keywords = ["价税合计", "合计", "金额", "¥", "￥", "小写"]
+
+    # 可能存在多个金额，取最大的
+    amount_max = None
+
+    # 遍历文本块，寻找关键词及附近的金额
+    for block in blocks:
+        x0, y0, x1, y1, text, block_no, block_type = block
+        text_clean = text.strip()
+
+        # 检查当前文本块是否包含关键词
+        for keyword in amount_keywords:
+            if keyword in text_clean:
+                # 策略A：关键词和金额在同一文本块内 (如“合计：¥128.50”)
+                # 使用正则表达式直接在当前文本块中查找金额数字
+                pattern = r'[¥￥]?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)'  # 匹配千分位和小数
+                match = re.search(pattern, text_clean)
+                if match:
+                    amount = match.group(1).replace(',', '')  # 去除千分位逗号
+                    
+                    # 更新最大金额
+                    if amount_max is None or float(amount) > float(amount_max):
+                        amount_max = amount
+
+    return amount_max  # 如果未找到，返回None
+
 def merge_invoices_fitz(all_pdf_files, output_path):
     """
     使用PyMuPDF将所有PDF文件，每4张合并到一个横向的A4页面上。
@@ -39,6 +80,8 @@ def merge_invoices_fitz(all_pdf_files, output_path):
     
     # 创建一个新的PDF文档
     new_pdf = fitz.open()
+
+    amount_sum = 0.0
     
     # A4横向尺寸（以点为单位）
     a4_width = 842  # 横向宽度
@@ -65,9 +108,17 @@ def merge_invoices_fitz(all_pdf_files, output_path):
             # 打开单个发票PDF
             single_pdf = fitz.open(pdf_file)
             
+            
             # 获取第一页
             invoice_page = single_pdf[0]
             
+            # 读取发票金额
+            amount = read_invoice_amount(invoice_page)
+            if amount:
+                amount_sum += float(amount)
+
+            print(f"  发票 {os.path.basename(pdf_file)} 金额: {amount}")
+
             # 获取页面的矩形
             src_rect = invoice_page.rect
             
@@ -111,6 +162,7 @@ def merge_invoices_fitz(all_pdf_files, output_path):
     
     print(f"\n处理完成！共合并了 {len(all_pdf_files)} 张发票。")
     print(f"输出文件已保存至: {output_path}")
+    print(f"总金额: {amount_sum:.2f}")
 
 def log_help():
     print("使用方法: python main.py [路径1] [路径2] ... [输出文件名.pdf]")
