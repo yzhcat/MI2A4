@@ -1,4 +1,5 @@
 # PDF发票合并工具
+ **GUI版：[mi2a4-gui](https://gitee.com/yzhcat/mi2a4-gui.git)** 
 
 批量合并PDF发票工具，将多个发票PDF文件合并到一个横向A4页面中，每页包含4个发票。
 ![合并示例](./doc/eg.jpg)
