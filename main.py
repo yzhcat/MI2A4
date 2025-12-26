@@ -5,10 +5,10 @@ import fitz  # PyMuPDF
 
 def get_file_from_folders(source_folders):
     """
-    找到所有PDF文件
+    从指定的文件夹列表中获取所有PDF文件
     """
-    # 收集所有目录中的PDF文件
-    pdf_files = []
+
+    all_pdf_files = []
     
     for source_folder in source_folders:
         if not os.path.exists(source_folder):
@@ -19,13 +19,13 @@ def get_file_from_folders(source_folders):
         files_num = 0
         for file in os.listdir(source_folder):
             if file.lower().endswith('.pdf'):
-                pdf_files.append(os.path.join(source_folder, file))
+                all_pdf_files.append(os.path.join(source_folder, file))
                 files_num += 1
                 print(f"  找到文件: {file}")
         
         print(f"  目录 {source_folder} 共找到 {files_num} 个PDF文件")
     
-    return pdf_files
+    return all_pdf_files
 
 # 读取发票金额
 def read_invoice_amount(page):
@@ -179,17 +179,17 @@ def help_use_path_file():
     print("./出行住宿")
     print("out1.pdf")
 
-def main():
-    # 获取命令行参数
-    args = sys.argv[1:]
-    
+def parse_arguments(args):
+    """
+    解析命令行参数，返回源路径列表和输出文件名
+    """
     if not args:
         log_help()
-        return
+        return None, None
     
     if args[0] == "-h":
         help_use_path_file()
-        return
+        return None, None
     
     # 默认输出文件名
     output_file = "out.pdf"
@@ -207,7 +207,7 @@ def main():
                 file_paths = [line.strip() for line in f.readlines() if line.strip()]
         except Exception as e:
             print(f"读取文件 {args[0]} 时出错: {e}")
-            return
+            return None, None
     else:
         file_paths = args
 
@@ -219,14 +219,33 @@ def main():
         output_file = file_paths[-1]
         file_paths = file_paths[:-1]  # 移除输出文件名
 
-     # 收集所有源路径
+    # 收集所有源路径
     source_paths = []
     for file_path in file_paths:
         if os.path.isdir(file_path):
             source_paths.append(file_path)
     
+    return source_paths, output_file
+
+def main():
+    # 获取命令行参数
+    args = sys.argv[1:]
+    
+    # 解析参数，获取源路径和输出文件名
+    source_paths, output_file = parse_arguments(args)
+    
+    # 如果解析失败，直接返回
+    if source_paths is None or output_file is None:
+        return
+    
     # 收集所有目录中的PDF文件
     all_pdf_files = get_file_from_folders(source_paths)
+    
+    # 如果没有找到PDF文件，直接返回
+    if not all_pdf_files:
+        return
+    
+    # 合并PDF文件
     merge_invoices_fitz(all_pdf_files, output_file)
 # 使用示例
 if __name__ == "__main__":
