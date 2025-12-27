@@ -249,5 +249,4 @@ def main():
     merge_invoices_fitz(all_pdf_files, output_file)
 # 使用示例
 if __name__ == "__main__":
-    # test_main()
     main()
