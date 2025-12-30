@@ -8,6 +8,7 @@ import fitz  # PyMuPDF
 from main import (
     read_invoice_amount,
     merge_invoices_fitz,
+    LAYOUTS
 )
 
 class InvoiceMergeGUI:
@@ -34,23 +35,42 @@ class InvoiceMergeGUI:
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(0, 10))
         
+        # 第一行按钮
+        top_button_frame = ttk.Frame(button_frame)
+        top_button_frame.pack(fill=tk.X, pady=(0, 5))
+        
         # 添加按钮
-        ttk.Button(button_frame, text="添加文件", command=self.add_files).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="删除", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="清空", command=self.clear_all).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_button_frame, text="添加文件", command=self.add_files).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_button_frame, text="删除", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_button_frame, text="清空", command=self.clear_all).pack(side=tk.LEFT, padx=(0, 5))
         
         # 分隔符
-        ttk.Separator(button_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Separator(top_button_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
         # 合并按钮
-        ttk.Button(button_frame, text="合并选中", command=self.merge_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="合并全部", command=self.merge_all).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_button_frame, text="合并选中", command=self.merge_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_button_frame, text="合并全部", command=self.merge_all).pack(side=tk.LEFT, padx=(0, 5))
         
         # 分隔符
-        ttk.Separator(button_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        ttk.Separator(top_button_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
         # 金额统计按钮
-        ttk.Button(button_frame, text="金额统计", command=self.calculate_amounts).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(top_button_frame, text="金额统计", command=self.calculate_amounts).pack(side=tk.LEFT, padx=(0, 5))
+        
+        # 第二行 - 布局选择
+        layout_frame = ttk.Frame(button_frame)
+        layout_frame.pack(fill=tk.X, pady=(5, 0))
+        
+        ttk.Label(layout_frame, text="布局选择:").pack(side=tk.LEFT, padx=(0, 5))
+        
+        # 布局选择变量
+        self.layout_var = tk.StringVar(value="2x2_h")
+        
+        # 布局选项 - 从main.py导入的LAYOUTS
+        for layout_key, layout_info in LAYOUTS.items():
+            text = f"{layout_info.orientation} {layout_info.cols}x{layout_info.rows}"
+            ttk.Radiobutton(layout_frame, text=text, variable=self.layout_var, 
+                           value=layout_key).pack(side=tk.LEFT, padx=(0, 10))
         
         # 创建文件列表框架
         list_frame = ttk.Frame(main_frame)
@@ -365,10 +385,13 @@ class InvoiceMergeGUI:
     def _merge_invoices_thread(self, pdf_files, output_path):
         """在线程中执行PDF合并，避免界面卡顿"""
         try:
-            self.root.after(0, lambda: messagebox.showinfo("提示", "开始合并PDF文件，请稍候..."))
+            # 获取选择的布局
+            layout = self.layout_var.get()
             
-            # 调用main.py中的合并函数
-            merge_invoices_fitz(pdf_files, output_path)
+            self.root.after(0, lambda: messagebox.showinfo("提示", f"开始合并PDF文件（布局: {layout}），请稍候..."))
+            
+            # 调用main.py中的合并函数，传入布局参数
+            merge_invoices_fitz(pdf_files, output_path, layout)
             
             self.root.after(0, lambda: messagebox.showinfo("完成", f"PDF合并完成！\n保存路径: {output_path}"))
             
@@ -382,8 +405,8 @@ class InvoiceMergeGUI:
                 else:
                     os.system(f"xdg-open '{folder_path}'")
                     
-        except Exception:
-            self.root.after(0, lambda e=Exception: messagebox.showerror("错误", f"合并PDF时出错: {str(e)}"))
+        except Exception as e:
+            self.root.after(0, lambda e=e: messagebox.showerror("错误", f"合并PDF时出错: {str(e)}"))
     
 def main():
     root = tk.Tk()
