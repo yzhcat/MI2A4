@@ -68,7 +68,7 @@ def read_invoice_amount(page):
     从PDF文件中读取发票金额。
     核心思路：提取文本与坐标 -> 定位关键词 -> 匹配附近金额数字
     """
-    amount = None
+    amount = 0.0
 
     # 提取带详细坐标信息的文本块
     # 使用 “dict” 或 “blocks” 格式以获得位置信息
@@ -79,7 +79,7 @@ def read_invoice_amount(page):
     amount_keywords = ["价税合计", "合计", "金额", "¥", "￥", "小写"]
 
     # 可能存在多个金额，取最大的
-    amount_max = None
+    amount_max = 0.0
 
     # 遍历文本块，寻找关键词及附近的金额
     for block in blocks:
@@ -97,10 +97,25 @@ def read_invoice_amount(page):
                     amount = match.group(1).replace(',', '')  # 去除千分位逗号
                     
                     # 更新最大金额
-                    if amount_max is None or float(amount) > float(amount_max):
-                        amount_max = amount
+                    if float(amount) > amount_max:
+                        amount_max = float(amount)
 
-    return amount_max  # 如果未找到，返回None
+    return amount_max
+
+def check_file_exists(output_path):
+    """
+    检查输出文件是否存在。
+    如果存在，会在文件名后添加数字后缀，直到找到一个不存在的文件名。
+    """
+    if os.path.exists(output_path):
+        base_name, ext = os.path.splitext(output_path)
+        counter = 1
+        while True:
+            new_output_path = f"{base_name}_{counter}{ext}"
+            if not os.path.exists(new_output_path):
+                return new_output_path
+            counter += 1
+    return output_path
 
 def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT):
     """
@@ -214,6 +229,7 @@ def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT):
             print(f"  处理文件 {pdf_file} 时出错: {e}")
     
     # 保存合并的PDF
+    output_path = check_file_exists(output_path)
     new_pdf.save(output_path)
     new_pdf.close()
     
