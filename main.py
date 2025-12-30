@@ -3,6 +3,41 @@ import sys
 import re
 import fitz  # PyMuPDF
 
+class PDFLayoutsInfo:
+    """PDF布局信息类，用于存储不同布局的配置参数"""
+    
+    def __init__(self, page_width: float, page_height: float, cols: int, rows: int):
+        """
+        初始化布局信息
+        
+        参数:
+        - page_width: 页面宽度（单位：点）
+        - page_height: 页面高度（单位：点）
+        - cols: 列数
+        - rows: 行数
+        """
+        self.page_width = page_width
+        self.page_height = page_height
+        self.cols = cols
+        self.rows = rows
+        self.items_per_page = cols * rows
+        self.orientation = "横向" if page_width > page_height else "竖向"
+    
+    def get_description(self):
+        """获取布局描述"""
+        return f"{self.orientation} {self.cols}x{self.rows}"
+
+# 定义A4页面尺寸
+PAGE_SIZE = (595, 842)
+
+# 定义所有布局
+LAYOUTS = {
+    "2x2_h": PDFLayoutsInfo(PAGE_SIZE[1], PAGE_SIZE[0], 2, 2),
+    "1x2_v": PDFLayoutsInfo(PAGE_SIZE[0], PAGE_SIZE[1], 1, 2),
+    "1x3_v": PDFLayoutsInfo(PAGE_SIZE[0], PAGE_SIZE[1], 1, 3),
+    "2x4_v": PDFLayoutsInfo(PAGE_SIZE[0], PAGE_SIZE[1], 2, 4)
+}
+DEFAULT_LAYOUT = "2x2_h"
 def get_file_from_folders(source_folders):
     """
     从指定的文件夹列表中获取所有PDF文件
@@ -67,9 +102,14 @@ def read_invoice_amount(page):
 
     return amount_max  # 如果未找到，返回None
 
-def merge_invoices_fitz(all_pdf_files, output_path):
+def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT):
     """
-    使用PyMuPDF将所有PDF文件，每4张合并到一个横向的A4页面上。
+    使用PyMuPDF将所有PDF文件按照指定布局合并到页面上。
+    
+    参数:
+    - all_pdf_files: PDF文件列表
+    - output_path: 输出文件路径
+    - layout: 布局类型，默认值为DEFAULT_LAYOUT
     """
 
     if not all_pdf_files:
@@ -77,37 +117,54 @@ def merge_invoices_fitz(all_pdf_files, output_path):
         return
     else:
         print(f"\n共 {len(all_pdf_files)} 个PDF文件，开始合并...")
+        print(f"使用布局: {layout}")
     
     # 创建一个新的PDF文档
     new_pdf = fitz.open()
 
     amount_sum = 0.0
     
-    # A4横向尺寸（以点为单位）
-    a4_width = 842  # 横向宽度
-    a4_height = 595  # 横向高度
+    # 获取布局配置
+    if layout not in LAYOUTS:
+        print(f"警告：未知布局 '{layout}'，使用默认布局 {DEFAULT_LAYOUT}")
+        layout = DEFAULT_LAYOUT
     
-    margin = 2 # 页边距
-    usable_width = a4_width - 2 * margin # 可用宽度
-    usable_height = a4_height - 2 * margin # 可用高度
-    sub_width = usable_width / 2.0 # 子页面宽度
-    sub_height = usable_height / 2.0 # 子页面高度
+    layout_info = LAYOUTS[layout]
+    page_width = layout_info.page_width
+    page_height = layout_info.page_height
+    cols = layout_info.cols
+    rows = layout_info.rows
+    items_per_page = layout_info.items_per_page
+    orientation = layout_info.orientation
+    
+    margin = 2  # 页边距
+    usable_width = page_width - 2 * margin  # 可用宽度
+    usable_height = page_height - 2 * margin  # 可用高度
+    sub_width = usable_width / cols  # 子页面宽度
+    sub_height = usable_height / rows  # 子页面高度
     
     # 处理每个PDF文件
     for index, pdf_file in enumerate(all_pdf_files):
-        position_in_page = index % 4
+        position_in_page = index % items_per_page
         
         # 创建新页面
         if position_in_page == 0:
-            page = new_pdf.new_page(width=a4_width, height=a4_height)
-            # 画两条线四等分页面
-            page.draw_line((margin, margin + sub_height), (margin + usable_width, margin + sub_height))
-            page.draw_line((margin + sub_width, margin), (margin + sub_width, margin + usable_height))
+            page = new_pdf.new_page(width=page_width, height=page_height)
+            
+            # 画分割线
+            # 绘制水平分割线
+            for i in range(1, rows):
+                y = margin + i * sub_height
+                page.draw_line((margin, y), (margin + usable_width, y))
+            
+            # 绘制垂直分割线
+            for i in range(1, cols):
+                x = margin + i * sub_width
+                page.draw_line((x, margin), (x, margin + usable_height))
         
         try:
             # 打开单个发票PDF
             single_pdf = fitz.open(pdf_file)
-            
             
             # 获取第一页
             invoice_page = single_pdf[0]
@@ -123,8 +180,8 @@ def merge_invoices_fitz(all_pdf_files, output_path):
             src_rect = invoice_page.rect
             
             # 计算目标位置
-            col = position_in_page % 2
-            row = position_in_page // 2
+            col = position_in_page % cols
+            row = position_in_page // cols
             
             x = margin + col * sub_width
             y = margin + row * sub_height
@@ -132,7 +189,7 @@ def merge_invoices_fitz(all_pdf_files, output_path):
             # 计算缩放比例
             scale_width = sub_width / src_rect.width
             scale_height = sub_height / src_rect.height
-            scale = min(scale_width, scale_height) * 0.95
+            scale = min(scale_width, scale_height) * 0.95  # 稍微缩小一点以留出边距
             
             # 创建目标矩形
             dest_width = src_rect.width * scale
@@ -151,7 +208,7 @@ def merge_invoices_fitz(all_pdf_files, output_path):
             
             single_pdf.close()
             
-            print(f"  已处理: {os.path.basename(pdf_file)} -> 第{index//4+1}页，位置{position_in_page+1}")
+            print(f"  已处理: {os.path.basename(pdf_file)} -> 第{index//items_per_page+1}页，位置{position_in_page+1}")
             
         except Exception as e:
             print(f"  处理文件 {pdf_file} 时出错: {e}")
@@ -162,38 +219,50 @@ def merge_invoices_fitz(all_pdf_files, output_path):
     
     print(f"\n处理完成！共合并了 {len(all_pdf_files)} 张发票。")
     print(f"输出文件已保存至: {output_path}")
+    print(f"布局: {orientation} {cols}x{rows}")
     print(f"总金额: {amount_sum:.2f}")
 
 def log_help():
     print("使用方法: python main.py [路径1] [路径2] ... [输出文件名.pdf]")
     print("或者: python main.py [目录列表.txt]")
     print("默认输出文件名: out.pdf")
+    print(f"默认布局: {LAYOUTS[DEFAULT_LAYOUT].get_description()}")
+    print("布局选项:")
+    for layout_key, layout_info in LAYOUTS.items():
+        print(f"  --layout={layout_key} ({layout_info.get_description()})")
     print("-h: 查看目录列表格式")
 
 def help_use_path_file():
-    print("*.txt 格式:")
-    print("每个目录占一行")
-    print("第一行或最后一行如果是*.pdf，会作为输出文件名")
-    print("示例:")
-    print("./差旅补助")
-    print("./出行住宿")
-    print("out1.pdf")
+    print("""
+目录列表.txt 格式:
+    每个目录占一行
+    如果存在--layout=参数，会覆盖默认布局
+    第一行或最后一行如果是*.pdf，会作为输出文件名
+    示例:
+./差旅补助
+./出行住宿
+--layout=2x4_v
+out1.pdf
+""")
 
 def parse_arguments(args):
     """
-    解析命令行参数，返回源路径列表和输出文件名
+    解析命令行参数，返回源路径列表、输出文件名和布局类型
     """
     if not args:
         log_help()
-        return None, None
+        return None, None, None
     
     if args[0] == "-h":
+        log_help()
         help_use_path_file()
-        return None, None
+        return None, None, None
     
-    # 默认输出文件名
+    # 默认输出文件名和布局
     output_file = "out.pdf"
+    layout = DEFAULT_LAYOUT  # 默认布局
     path_from_txt = False
+    
     # 检查第一个参数是否是.txt文件
     if args and args[0].lower().endswith('.txt'):
         path_from_txt = True
@@ -207,9 +276,22 @@ def parse_arguments(args):
                 file_paths = [line.strip() for line in f.readlines() if line.strip()]
         except Exception as e:
             print(f"读取文件 {args[0]} 时出错: {e}")
-            return None, None
+            return None, None, None
     else:
         file_paths = args
+
+
+    # 检查是否有布局参数
+    layout_args = [arg for arg in file_paths if arg.startswith("--layout=")]
+    if layout_args:
+        layout = layout_args[0].split("=")[1]
+        file_paths = [arg for arg in file_paths if not arg.startswith("--layout=")]
+        
+        # 验证布局参数
+        valid_layouts = LAYOUTS.keys()
+        if layout not in valid_layouts:
+            print(f"错误: 无效的布局参数 {layout}，有效选项: {', '.join(valid_layouts)}")
+            return None, None, None
 
     # 检查第一个和最后一个参数是否是.pdf文件
     if file_paths and file_paths[0].lower().endswith('.pdf'):
@@ -225,17 +307,17 @@ def parse_arguments(args):
         if os.path.isdir(file_path):
             source_paths.append(file_path)
     
-    return source_paths, output_file
+    return source_paths, output_file, layout
 
 def main():
     # 获取命令行参数
     args = sys.argv[1:]
     
-    # 解析参数，获取源路径和输出文件名
-    source_paths, output_file = parse_arguments(args)
+    # 解析参数，获取源路径、输出文件名和布局
+    source_paths, output_file, layout = parse_arguments(args)
     
     # 如果解析失败，直接返回
-    if source_paths is None or output_file is None:
+    if source_paths is None:
         return
     
     # 收集所有目录中的PDF文件
@@ -246,7 +328,7 @@ def main():
         return
     
     # 合并PDF文件
-    merge_invoices_fitz(all_pdf_files, output_file)
+    merge_invoices_fitz(all_pdf_files, output_file, layout)
 # 使用示例
 if __name__ == "__main__":
     main()
