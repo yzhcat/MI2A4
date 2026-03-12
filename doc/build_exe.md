@@ -13,6 +13,7 @@
 ### 1. 安装PyInstaller
 
 ```bash
+uv sync
 uv add pyinstaller --link-mode=copy
 ```
 
