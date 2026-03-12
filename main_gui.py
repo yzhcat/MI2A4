@@ -8,7 +8,8 @@ import fitz  # PyMuPDF
 from main import (
     read_invoice_amount,
     merge_invoices_fitz,
-    LAYOUTS
+    LAYOUTS,
+    DEFAULT_ALIGN
 )
 
 class InvoiceMergeGUI:
@@ -57,11 +58,12 @@ class InvoiceMergeGUI:
         # 金额统计按钮
         ttk.Button(top_button_frame, text="金额统计", command=self.calculate_amounts).pack(side=tk.LEFT, padx=(0, 5))
         
-        # 第二行 - 布局选择
-        layout_frame = ttk.Frame(button_frame)
-        layout_frame.pack(fill=tk.X, pady=(5, 0))
+        # 第二行 - 布局和对齐选择
+        option_frame = ttk.Frame(button_frame)
+        option_frame.pack(fill=tk.X, pady=(5, 0))
         
-        ttk.Label(layout_frame, text="布局选择:").pack(side=tk.LEFT, padx=(0, 5))
+        # 布局选择
+        ttk.Label(option_frame, text="布局选择:").pack(side=tk.LEFT, padx=(0, 5))
         
         # 布局选择变量
         self.layout_var = tk.StringVar(value="2x2_h")
@@ -69,8 +71,28 @@ class InvoiceMergeGUI:
         # 布局选项 - 从main.py导入的LAYOUTS
         for layout_key, layout_info in LAYOUTS.items():
             text = f"{layout_info.orientation} {layout_info.cols}x{layout_info.rows}"
-            ttk.Radiobutton(layout_frame, text=text, variable=self.layout_var, 
+            ttk.Radiobutton(option_frame, text=text, variable=self.layout_var, 
                            value=layout_key).pack(side=tk.LEFT, padx=(0, 10))
+        
+        # 分隔符
+        ttk.Separator(option_frame, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
+        # 对齐方式选择
+        ttk.Label(option_frame, text="对齐方式:").pack(side=tk.LEFT, padx=(0, 5))
+        
+        # 对齐方式选择变量
+        self.align_var = tk.StringVar(value=DEFAULT_ALIGN)
+        
+        # 对齐方式选项
+        align_options = [
+            ("左对齐", "left"),
+            ("居中对齐", "center"),
+            ("右对齐", "right")
+        ]
+        
+        for text, value in align_options:
+            ttk.Radiobutton(option_frame, text=text, variable=self.align_var, 
+                           value=value).pack(side=tk.LEFT, padx=(0, 10))
         
         # 创建文件列表框架
         list_frame = ttk.Frame(main_frame)
@@ -385,13 +407,14 @@ class InvoiceMergeGUI:
     def _merge_invoices_thread(self, pdf_files, output_path):
         """在线程中执行PDF合并，避免界面卡顿"""
         try:
-            # 获取选择的布局
+            # 获取选择的布局和对齐方式
             layout = self.layout_var.get()
+            align = self.align_var.get()
             
-            self.root.after(0, lambda: messagebox.showinfo("提示", f"开始合并PDF文件（布局: {layout}），请稍候..."))
+            self.root.after(0, lambda: messagebox.showinfo("提示", f"开始合并PDF文件（布局: {layout}，对齐方式: {align}），请稍候..."))
             
-            # 调用main.py中的合并函数，传入布局参数
-            merge_invoices_fitz(pdf_files, output_path, layout)
+            # 调用main.py中的合并函数，传入布局和对齐参数
+            merge_invoices_fitz(pdf_files, output_path, layout, align)
             
             self.root.after(0, lambda: messagebox.showinfo("完成", f"PDF合并完成！\n保存路径: {output_path}"))
             
