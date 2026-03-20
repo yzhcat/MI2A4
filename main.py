@@ -62,6 +62,18 @@ def get_file_from_folders(source_folders):
         print(f"  目录 {source_folder} 共找到 {files_num} 个PDF文件")
     
     return all_pdf_files
+# 读取发票金额
+def read_pdf_amount(pdf_file_path) -> float:
+    """
+    从PDF文件中读取发票金额。
+    """
+    single_pdf = fitz.open(pdf_file_path)
+    # 获取第一页
+    invoice_page = single_pdf[0]
+
+    amount_max = read_invoice_amount(invoice_page)
+    
+    return amount_max
 
 # 读取发票金额
 def read_invoice_amount(page):
@@ -90,12 +102,13 @@ def read_invoice_amount(page):
         # 检查当前文本块是否包含关键词
         for keyword in amount_keywords:
             if keyword in text_clean:
-                # 策略A：关键词和金额在同一文本块内 (如“合计：¥128.50”)
+                # 策略A：关键词和金额在同一文本块内 (如"合计：¥155670.562")
                 # 使用正则表达式直接在当前文本块中查找金额数字
-                pattern = r'[¥￥]?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)'  # 匹配千分位和小数
+                # 支持任意位数小数，支持间隔点作为小数点
+                pattern = r'[¥￥]?\s*(\d+(?:,\d{3})*(?:[.·]\d+)?)'  # 匹配任意长度数字，支持千分位和任意位数小数，支持间隔点
                 match = re.search(pattern, text_clean)
                 if match:
-                    amount = match.group(1).replace(',', '')  # 去除千分位逗号
+                    amount = match.group(1).replace(',', '').replace('·', '.')  # 去除千分位逗号，将间隔点替换为小数点
                     
                     # 更新最大金额
                     if float(amount) > amount_max:
