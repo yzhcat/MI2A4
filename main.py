@@ -99,7 +99,6 @@ def read_invoice_amount(page) -> float:
     print("  正在分析文本块以提取金额...")
     for block in blocks:
         x0, y0, x1, y1, text, block_no, block_type = block
-        text_clean = text.strip()
         text_clean = text.replace(' ', '').strip()  # 去除空格
 
         # 检查当前文本块是否包含关键词
@@ -111,11 +110,11 @@ def read_invoice_amount(page) -> float:
                 pattern = r'[¥￥]?\s*(\d+(?:,\d{3})*(?:[.·]\d+)?)'  # 匹配任意长度数字，支持千分位和任意位数小数，支持间隔点
                 match = re.search(pattern, text_clean)
                 if match:
-                    print(f"    查找金额，关键词: '{keyword}'，文本: '{text_clean}'，匹配结果: {match.group(1)}")
                     amount = match.group(1).replace(',', '').replace('·', '.')  # 去除千分位逗号，将间隔点替换为小数点
 
                     # 更新最大金额
                     if float(amount) > amount_max:
+                        print(f"    查找金额，关键词: '{keyword}'，文本: '{text_clean}'，匹配结果: {match.group(1)}")
                         amount_max = float(amount)
     return amount_max
 
