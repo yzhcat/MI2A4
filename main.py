@@ -72,11 +72,11 @@ def read_pdf_amount(pdf_file_path) -> float:
     invoice_page = single_pdf[0]
 
     amount_max = read_invoice_amount(invoice_page)
-    
+    print(f"  发票 {os.path.basename(pdf_file_path)} 金额: {amount_max}")
     return amount_max
 
 # 读取发票金额
-def read_invoice_amount(page):
+def read_invoice_amount(page) -> float:
     """
     从PDF文件中读取发票金额。
     核心思路：提取文本与坐标 -> 定位关键词 -> 匹配附近金额数字
@@ -95,9 +95,11 @@ def read_invoice_amount(page):
     amount_max = 0.0
 
     # 遍历文本块，寻找关键词及附近的金额
+    print("-" * 20)
+    print("  正在分析文本块以提取金额...")
     for block in blocks:
         x0, y0, x1, y1, text, block_no, block_type = block
-        text_clean = text.strip()
+        text_clean = text.replace(' ', '').strip()  # 去除空格
 
         # 检查当前文本块是否包含关键词
         for keyword in amount_keywords:
@@ -109,11 +111,11 @@ def read_invoice_amount(page):
                 match = re.search(pattern, text_clean)
                 if match:
                     amount = match.group(1).replace(',', '').replace('·', '.')  # 去除千分位逗号，将间隔点替换为小数点
-                    
+
                     # 更新最大金额
                     if float(amount) > amount_max:
+                        print(f"    查找金额，关键词: '{keyword}'，文本: '{text_clean}'，匹配结果: {match.group(1)}")
                         amount_max = float(amount)
-
     return amount_max
 
 def check_file_exists(output_path):
@@ -131,7 +133,7 @@ def check_file_exists(output_path):
             counter += 1
     return output_path
 
-def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT, align=DEFAULT_ALIGN):
+def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT, align=DEFAULT_ALIGN,sum_amount=True):
     """
     使用PyMuPDF将所有PDF文件按照指定布局合并到页面上。
     
@@ -139,6 +141,8 @@ def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT, align
     - all_pdf_files: PDF文件列表
     - output_path: 输出文件路径
     - layout: 布局类型，默认值为DEFAULT_LAYOUT
+    - align: 对齐方式，默认值为DEFAULT_ALIGN
+    - sum_amount: 是否计算总金额，默认值为True
     """
 
     if not all_pdf_files:
@@ -199,11 +203,11 @@ def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT, align
             invoice_page = single_pdf[0]
             
             # 读取发票金额
-            amount = read_invoice_amount(invoice_page)
-            if amount:
-                amount_sum += float(amount)
-
-            print(f"  发票 {os.path.basename(pdf_file)} 金额: {amount}")
+            if sum_amount:
+                amount = read_invoice_amount(invoice_page)
+                if amount:
+                    amount_sum += float(amount)
+                print(f"  发票 {os.path.basename(pdf_file)} 金额: {amount}")
 
             # 获取页面的矩形
             src_rect = invoice_page.rect
@@ -258,11 +262,16 @@ def merge_invoices_fitz(all_pdf_files, output_path, layout=DEFAULT_LAYOUT, align
     print(f"输出文件已保存至: {output_path}")
     print(f"布局: {orientation} {cols}x{rows}")
     print(f"对齐方式: {align}")
-    print(f"总金额: {amount_sum:.2f}")
+    if sum_amount:
+        print(f"总金额: {amount_sum:.2f}")
+    return output_path
 
 def log_help():
-    print("使用方法: python main.py [路径1] [路径2] ... [输出文件名.pdf]")
-    print("或者: python main.py [目录列表.txt]")
+    print("使用方法:")
+    print("当第一个或最后一个参数是*.pdf时，会作为输出文件名")
+    print("python main.py [路径1] [路径2] ... [输出文件名.pdf]")
+    print("当第一个参数是*.txt时，会读取txt文件中的参数，忽略后面的参数")
+    print("python main.py [目录列表.txt]")
     print("默认输出文件名: out.pdf")
     print(f"默认布局: {LAYOUTS[DEFAULT_LAYOUT].get_description()}")
     print(f"默认对齐方式: {DEFAULT_ALIGN}")
