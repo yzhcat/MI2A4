@@ -414,7 +414,7 @@ class InvoiceMergeGUI:
             self.root.after(0, lambda: messagebox.showinfo("提示", f"开始合并PDF文件（布局: {layout}，对齐方式: {align}），请稍候..."))
             
             # 调用main.py中的合并函数，传入布局和对齐参数
-            merge_invoices_fitz(pdf_files, output_path, layout, align)
+            merge_invoices_fitz(pdf_files, output_path, layout, align, sum_amount=False)
             
             self.root.after(0, lambda: messagebox.showinfo("完成", f"PDF合并完成！\n保存路径: {output_path}"))
             
