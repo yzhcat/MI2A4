@@ -111,7 +111,7 @@ def _convert_section(n):
 
 
 def _convert_decimal_to_chinese(dec, integer_is_zero):
-    fen = int(dec * 100 + Decimal("0.0001"))
+    fen = int(dec * 100 + 0.0001)  # 避免浮点误差导致的错误
     jiao = fen // 10
     fen = fen % 10
 
@@ -137,7 +137,7 @@ def _convert_decimal_to_chinese(dec, integer_is_zero):
 # ----------------------------------------------------------------------
 # 大写转小写
 # ----------------------------------------------------------------------
-def chinese_to_number(amount_str: str) -> Decimal:
+def chinese_to_number(amount_str: str) -> float:
     """
     人民币大写金额转阿拉伯数字金额
     """
@@ -154,8 +154,8 @@ def chinese_to_number(amount_str: str) -> Decimal:
         dec_part_str = s
 
     integer_val = _parse_integer_part(int_part_str) if int_part_str else 0
-    decimal_val = _parse_decimal_part(dec_part_str) if dec_part_str else Decimal(0)
-    return Decimal(integer_val) + decimal_val
+    decimal_val = _parse_decimal_part(dec_part_str) if dec_part_str else 0
+    return float(integer_val) + float(decimal_val)
 
 
 def _parse_integer_part(s):
@@ -274,7 +274,7 @@ if __name__ == "__main__":
     for amt in test_amounts:
         ch_str = number_to_chinese(float(amt))
         back_num = chinese_to_number(ch_str)
-        assert abs(amt - back_num) < Decimal("0.0001"), (
+        assert abs(amt - Decimal(str(back_num))) < Decimal("0.0001"), (
             f"Error: {amt} -> {ch_str} -> {back_num}"
         )
         print(f"{str(amt):12} -> {ch_str:30s} -> {back_num}")
